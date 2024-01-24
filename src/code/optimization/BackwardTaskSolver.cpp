@@ -11,19 +11,20 @@
 void BackwardTaskSolver::solveDemo(Simulation *system, const std::function<void(const std::string &)> &setTextBoxCB,
                                    int demoNum, bool isRandom, int srandSeed) {
   OptimizeHelper helper = getOptimizeHelper(system, demoNum);
-
+  // std::cout << system->particles[0].velocity << std::endl; -> -0.0329408
   helper.taskInfo.optimizer = Optimizer::LBFGS;
   optimizeLBFGS(system,helper, system->sceneConfig.stepNum, demoNum, isRandom, srandSeed, setTextBoxCB);
 
 
 }
 
-
+#include <cstdlib>
 void BackwardTaskSolver::optimizeLBFGS(Simulation *system, OptimizeHelper& helper,
                                        int FORWARD_STEPS, int demoNum, bool isRandom,
                                        int srandSeed, const std::function<void(const std::string &)> &setTextBoxCB) {
 
-
+  // std::cout << system->particles[0].velocity << std::endl; -> here -0.0329408
+  // exit(0);
   LBFGSpp::LBFGSBParam<double> param;
   param.delta = 0.001; // objective function convergence param
   param.m = 10;
@@ -49,6 +50,7 @@ void BackwardTaskSolver::optimizeLBFGS(Simulation *system, OptimizeHelper& helpe
   std::cout << "lbfgs starts with param:" << bestParam.transpose() << std::endl;
   double minLoss = 0;
   try {
+    // std::cout << system->particles[0].velocity << std::endl; -> here it is -0.0329408
     int niter = solver.minimize(helper, bestParam, minLoss, helper.getLowerBound(),
                                 helper.getUpperBound());
     system->exportStatistics((Demos) demoNum, helper.statistics, helper.taskInfo, true);
@@ -95,12 +97,17 @@ OptimizeHelper BackwardTaskSolver::getOptimizeHelper(Simulation *system, int dem
   Simulation::ParamInfo  paramGroundtruth;
   Simulation::LossInfo lossInfo;
   LossType lossType;
-
+  // std::cout << system->particles[0].velocity << std::endl; -> -1000 (2 times)
+  
   setDemoSceneConfigAndConvergence(system, demoNum, taskInfo);
   if (demoNum != Demos::DEMO_WIND_SIM2REAL)  {
+    // std::cout << system->particles[0].velocity << std::endl; -> here -1000
     system->createClothMesh();
+    // std::cout << system->particles[0].velocity << std::endl; -> here 0
     system->initScene();
   }
+
+  // std::cout << system->particles[0].velocity << std::endl; -> here 0
 
   setInitialConditions(demoNum, system,  paramGroundtruth, taskInfo);
   if (OptimizationTaskConfigurations::demoNumToConfigMap[demoNum].hasGroundtruth) {
@@ -109,6 +116,8 @@ OptimizeHelper BackwardTaskSolver::getOptimizeHelper(Simulation *system, int dem
   }
 
 
+  // std::cout << system->particles[0].velocity << std::endl; -> here 0
+  
   setLossFunctionInformationAndType(lossType, lossInfo, system, demoNum);
 
 

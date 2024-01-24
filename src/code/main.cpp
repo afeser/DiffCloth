@@ -77,7 +77,12 @@ static std::string getEnvVar(const std::string &name) {
     return "";
   }
 }
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]){
+  int randSeed = 0; 
+  auto demo = Demos::DEMO_SPHERE_ROTATE;
+  runBackwardTask(demo, true, 0);
+}
+int main2(int argc, char *argv[]) {
   int n_threads = 1;
   std::string NUM_THREADS_ENV_VAR = getEnvVar("OMP_NUM_THREADS");
   if (NUM_THREADS_ENV_VAR.empty()) {

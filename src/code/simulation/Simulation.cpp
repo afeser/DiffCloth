@@ -3,6 +3,7 @@
 //
 
 #include "Simulation.h"
+#include <cstdlib>
 
 //#define DEBUG_EXPLOSION
 //#define  DEBUG_SELFCOLLISION
@@ -1040,7 +1041,10 @@ void Simulation::stepNN(int idx, const VecXd& x,const VecXd& v,const VecXd& fixe
   forwardRecords[forwardRecords.size()-1].stepIdx = idx;
 
 }
+
 void Simulation::step() {
+  // std::cout << particles[0].velocity << "\n"; -> zero here
+  
    timeSteptimer = Timer();
   timeSteptimer.enabled = true;
   timeSteptimer.ticStart();
@@ -2167,6 +2171,9 @@ std::vector<Vec3d> Simulation::rotatePointsAroundCenter(std::vector<Vec3d> &part
   return out;
 }
 
+Vec3d minDim, maxDim;
+double scale;
+
 void Simulation::createClothMeshFromModel(std::vector<Vec3d> &particleIn, std::vector<Vec3i> &meshIn) {
   if (particles.size() > 20000) {
     std::printf("Model has %zu vertices and %zu triangles. The program might take a long time to run\n", particleIn.size(),
@@ -2178,7 +2185,8 @@ void Simulation::createClothMeshFromModel(std::vector<Vec3d> &particleIn, std::v
   rotatePointsAccordingToConfig(particleIn);
 
 
-  Vec3d minDim = particleIn[0], maxDim = particleIn[0];
+  minDim = particleIn[0];
+  maxDim = particleIn[0];
   for (Vec3d &p : particleIn) {
     for (int i = 0; i < 3; i++) {
       minDim[i] = std::min(minDim[i], p[i]);
@@ -2191,7 +2199,7 @@ void Simulation::createClothMeshFromModel(std::vector<Vec3d> &particleIn, std::v
 
   Vec3d dim = maxDim - minDim;
 
-  double scale = sceneConfig.fabric.keepOriginalScalePoint ? 1.0 : std::max(std::max(dim[0], dim[1]), dim[2]) /
+  scale = sceneConfig.fabric.keepOriginalScalePoint ? 1.0 : std::max(std::max(dim[0], dim[1]), dim[2]) /
                                                                    sceneConfig.fabric.clothDimX;
 
 
@@ -2212,6 +2220,35 @@ void Simulation::createClothMeshFromModel(std::vector<Vec3d> &particleIn, std::v
   meshInitTransofrmScale = scale;
   restShapeMidPoint = 0.5 * (restShapeMinDim + restShapeMaxDim);
 
+  // AFESER
+  if(0){
+    std::vector<Vec3d> particlePositions;
+    std::vector<Vec3d> particleVelocities;
+    std::string fPath = "/tmp/particle_positions_and_velocities.txt";
+    std::cout << "Nummber of particles = " << particleIn.size() << "\n";
+    std::cout << "Reading file " << fPath << "...\n";
+    std::ifstream inputFile(fPath);
+    if (!inputFile.is_open()) {
+      std::cout << "Could not open file " << fPath << "\n";
+      exit(1);
+    }
+
+    // First N elements are the position, next N elements are the velocities
+    double x, y, z;  
+    for(int i = 0; i < particleIn.size(); i++) {
+      inputFile >> x >> y >> z;
+      // Store the values in a vector
+      particlePositions.push_back(Vec3d(x, y, z));
+    }
+    for(int i = 0; i < particleIn.size(); i++){
+      inputFile >> x >> y >> z;
+      particleVelocities.push_back(Vec3d(x, y, z));
+    }
+    inputFile.close();
+
+  }
+
+
   for (Vec3d &p : particleIn) {
     if (std::isnan(p[0]) || std::isnan(p[1]) || std::isnan(p[2])) {
       std::printf("encountered NAN pos (%.3f, %.3f, %.3f) when loading vertex number %zu from file\n", p[0], p[1], p[2],
@@ -2220,7 +2257,7 @@ void Simulation::createClothMeshFromModel(std::vector<Vec3d> &particleIn, std::v
     Vec3d normalizedPos = sceneConfig.fabric.keepOriginalScalePoint ? p : (p - minDim) / scale - restShapeMaxDim;
     int idx = particles.size();
     particles.emplace_back(1, normalizedPos, normalizedPos,
-                           Vec3d(0, 0, 0), Vec2i(0, 0),
+                           Vec3d(0.0, 0, -1000.0), Vec2i(0, 0),
                            idx);
     particleTriangleMap.emplace_back(std::vector<int>());
   }
@@ -2250,8 +2287,7 @@ void Simulation::createClothMeshFromModel(std::vector<Vec3d> &particleIn, std::v
 
   updateBackwardDefaultInfo(); // resize vectors whose length is parameter-dependent
 
-
-
+  // std::cout << particles[0].velocity << "\n"; -> here -1000
 }
 
 
@@ -2555,7 +2591,6 @@ void Simulation::loadSceneMeshes() {
 }
 
 void Simulation::createClothMesh() {
-
   Triangle::k_stiff = sceneConfig.fabric.k_stiff_stretching;
   TriangleBending::k_stiff = sceneConfig.fabric.k_stiff_bending;
   if (sceneConfig.fabric.isModel) {
@@ -2581,14 +2616,15 @@ void Simulation::createClothMesh() {
                     sceneConfig.fabric.initPosFile.c_str());
       }
     }
+    if(particles.size() > 0) std::cout << "AA1: " << this->particles[0].velocity << "\n";
     createClothMeshFromModel(modelPoints, modelTris);
 
   } else {
-
+    if(particles.size() > 0) std::cout << "AA2: " << this->particles[0].velocity << "\n";
     createClothMeshFromConfig();
   }
 
-
+  if(particles.size() > 0) std::cout << "BB: " << this->particles[0].velocity << "\n";
   windFallOff = VecXd(3 * particles.size());
   windFallOff.setOnes();
 
@@ -2598,6 +2634,7 @@ void Simulation::createClothMesh() {
   updateMassMatrix();
   initializePrefactoredMatrices();
   updateCollisionRadii();
+  if(particles.size() > 0) std::cout << "CC: " << this->particles[0].velocity << "\n";
 
   // TODO: delete after debug
   double stretchingForce = 0;
@@ -2605,6 +2642,9 @@ void Simulation::createClothMesh() {
     stretchingForce += t.stretchingForce(x_n).norm();
   }
   std::printf("stretching force after initialization: %.5f\n", stretchingForce);
+
+
+  if(particles.size() > 0) std::cout << "DD: " << this->particles[0].velocity << "\n";
 
 }
 
@@ -2712,10 +2752,12 @@ void Simulation::createClothMeshFromConfig() {
     for (int j = 0; j < sceneConfig.fabric.gridNumX; j++) {
       int id = gridIndicesToParticle(i, j);
       Vec3d mypos = particleIn[id];
+      // AFESER -> burada da set ediliyor yine!
+      // THIS IS FREEZING WHEN I SET IT!
       particles.emplace_back(0.0,
                              mypos,
                              mypos,
-                             Vec3d(0, 0, 0),
+                             Vec3d(0.0001, 0, 0),
                              Vec2i(i, j), particles.size());
       particleTriangleMap.emplace_back(std::vector<int>());
       assert(particles[particles.size() - 1].idx == particles.size() - 1);
@@ -2800,6 +2842,7 @@ Simulation::createSystem(SceneConfiguration sceneConfig,
   msSystem->myConfig = {.x0 = msSystem->forwardRecords[0].x, .v0 = msSystem->forwardRecords[0].v, .k_stiff = Triangle::k_stiff};
 
 
+  std::cout << msSystem->particles[0].velocity << "\n"; // -> here -1000
   return msSystem;
 
 }
