@@ -2757,7 +2757,7 @@ void Simulation::createClothMeshFromConfig() {
       particles.emplace_back(0.0,
                              mypos,
                              mypos,
-                             Vec3d(0.0001, 0, 0),
+                             Vec3d(0.001, 0, 0),
                              Vec2i(i, j), particles.size());
       particleTriangleMap.emplace_back(std::vector<int>());
       assert(particles[particles.size() - 1].idx == particles.size() - 1);
